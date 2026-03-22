@@ -1,0 +1,2 @@
+# Bank Core Infrastructure
+This repository contains the foundational Infrastructure-as-Code (IaC) for the Navique Data Engineering Challenge. It utilizes Terraform to provision an Enterprise-grade Azure environment, including an Azure Databricks Workspace and Azure Data Lake Storage Gen2 for raw data ingestion. The infrastructure is managed via a GitOps workflow, with fully automated validation and deployment triggered through an Azure DevOps CI/CD pipeline.
