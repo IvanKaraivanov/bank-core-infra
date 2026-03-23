@@ -1,0 +1,37 @@
+trigger:
+  branches:
+    include:
+    - main
+
+pr:
+  branches:
+    include:
+    - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureServiceConnection: 'bank-core-sc'
+
+stages:
+- stage: PR_Validation
+  displayName: 'PR Validation (Terraform Plan)'
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+  jobs:
+  - job: Terraform_Plan
+    displayName: 'Terraform Init & Plan'
+    steps:
+    - checkout: self
+    - task: AzureCLI@2
+      displayName: 'Run Terraform Plan'
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Starting Terraform Plan for DEV environment..."
+          cd environments/dev
+          terraform init
+          terraform validate
+          terraform plan
