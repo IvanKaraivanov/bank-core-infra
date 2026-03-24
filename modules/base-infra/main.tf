@@ -109,3 +109,27 @@ resource "azurerm_databricks_workspace" "databricks" {
     private_subnet_network_security_group_association_id = azurerm_subnet_network_security_group_association.dbx_private.id
   }
 }
+
+# ==========================================
+# 7. DATABRICKS ACCESS CONNECTOR (The Bridge)
+# ==========================================
+# Creates a Managed Identity for Databricks to securely access the Data Lake (Unity Catalog standard)
+resource "azurerm_databricks_access_connector" "unity" {
+  name                = "dbac-bankcore-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+# ==========================================
+# 8. ROLE ASSIGNMENT (The VIP Pass)
+# ==========================================
+# Grants the Access Connector read/write permissions to the Data Lake
+resource "azurerm_role_assignment" "databricks_datalake_access" {
+  scope                = azurerm_storage_account.datalake.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_databricks_access_connector.unity.identity[0].principal_id
+}
