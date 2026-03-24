@@ -198,7 +198,7 @@ resource "databricks_grants" "catalog_access" {
   catalog = databricks_catalog.env_catalog.name
 
   grant {
-    principal  = "users"
+    principal  = "account users"
     privileges = [
       "USE_CATALOG",    # Allows users to see the catalog
       "USE_SCHEMA",     # Allows users to see schemas inside
