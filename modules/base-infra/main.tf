@@ -85,3 +85,27 @@ resource "azurerm_storage_account" "datalake" {
   # THIS is the critical setting that enables Hierarchical Namespace (ADLS Gen2)
   is_hns_enabled           = true 
 }
+
+# ==========================================
+# 6. DATABRICKS WORKSPACE (The Engine)
+# ==========================================
+resource "azurerm_databricks_workspace" "databricks" {
+  name                = "dbw-bankcore-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  
+  # Premium SKU is required for VNet Injection and Role-Based Access Control (RBAC)
+  sku                 = "premium"
+
+  # VNet Injection configuration.
+  # Instructs Databricks to deploy its clusters into our custom, isolated subnets.
+  custom_parameters {
+    # Security best practice: Do not assign public IP addresses to the cluster nodes
+    no_public_ip                                         = true 
+    virtual_network_id                                   = azurerm_virtual_network.vnet.id
+    public_subnet_name                                   = azurerm_subnet.dbx_public.name
+    private_subnet_name                                  = azurerm_subnet.dbx_private.name
+    public_subnet_network_security_group_association_id  = azurerm_subnet_network_security_group_association.dbx_public.id
+    private_subnet_network_security_group_association_id = azurerm_subnet_network_security_group_association.dbx_private.id
+  }
+}
