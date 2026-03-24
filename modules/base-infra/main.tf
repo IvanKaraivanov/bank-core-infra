@@ -189,3 +189,23 @@ resource "databricks_schema" "gold" {
   name         = "gold_${var.environment}"
   comment      = "Gold layer: Business-level aggregates and Dimensional Model"
 }
+
+# ==========================================
+# 10. GRANTS (Permissions for human users)
+# ==========================================
+# Grant permissions to the built-in "users" group so you can see and use the catalog
+resource "databricks_grant" "catalog_access" {
+  catalog = databricks_catalog.env_catalog.name
+
+  grant {
+    principal  = "users"
+    privileges = [
+      "USE_CATALOG",    # Allows users to see the catalog
+      "USE_SCHEMA",     # Allows users to see schemas inside
+      "CREATE_SCHEMA",  # Allows users to create new schemas
+      "CREATE_TABLE",   # Allows users to create tables
+      "SELECT",         # Allows users to read data
+      "MODIFY"          # Allows users to insert/update/delete data
+    ]
+  }
+}
