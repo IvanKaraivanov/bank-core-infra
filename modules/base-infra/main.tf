@@ -133,3 +133,59 @@ resource "azurerm_role_assignment" "databricks_datalake_access" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_databricks_access_connector.unity.identity[0].principal_id
 }
+
+# ==========================================
+# 9. UNITY CATALOG & MEDALLION ARCHITECTURE
+# ==========================================
+
+# 1. Create the root filesystem (container) in the Data Lake
+resource "azurerm_storage_data_lake_gen2_filesystem" "unity_data" {
+  name               = "unity-catalog-data"
+  storage_account_id = azurerm_storage_account.datalake.id
+}
+
+# 2. Register our Access Connector in Unity Catalog (Storage Credential)
+resource "databricks_storage_credential" "mi_credential" {
+  name = "cred-bankcore-${var.environment}"
+  azure_managed_identity {
+    access_connector_id = azurerm_databricks_access_connector.unity.id
+  }
+  comment    = "Managed identity credential for ${var.environment}"
+  
+  # Ensure the Azure role assignment exists before creating the credential
+  depends_on = [azurerm_role_assignment.databricks_datalake_access]
+}
+
+# 3. Create the External Location (tells Databricks where the lake is and how to access it)
+resource "databricks_external_location" "datalake_loc" {
+  name            = "ext-bankcore-${var.environment}"
+  url             = format("abfss://%s@%s.dfs.core.windows.net/", azurerm_storage_data_lake_gen2_filesystem.unity_data.name, azurerm_storage_account.datalake.name)
+  credential_name = databricks_storage_credential.mi_credential.id
+  comment         = "External location for Bank Core ${var.environment}"
+}
+
+# 4. Create the Environment-specific Catalog (Environment isolation)
+resource "databricks_catalog" "env_catalog" {
+  name         = "bankcore_${var.environment}"
+  storage_root = databricks_external_location.datalake_loc.url
+  comment      = "Main catalog for the ${var.environment} environment"
+}
+
+# 5. Create the Medallion schemas (Databases) with environment suffixes
+resource "databricks_schema" "bronze" {
+  catalog_name = databricks_catalog.env_catalog.name
+  name         = "bronze_${var.environment}"
+  comment      = "Bronze layer: Raw, unvalidated data"
+}
+
+resource "databricks_schema" "silver" {
+  catalog_name = databricks_catalog.env_catalog.name
+  name         = "silver_${var.environment}"
+  comment      = "Silver layer: Cleaned, filtered, and conformed data"
+}
+
+resource "databricks_schema" "gold" {
+  catalog_name = databricks_catalog.env_catalog.name
+  name         = "gold_${var.environment}"
+  comment      = "Gold layer: Business-level aggregates and Dimensional Model"
+}
