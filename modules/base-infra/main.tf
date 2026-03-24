@@ -194,7 +194,7 @@ resource "databricks_schema" "gold" {
 # 10. GRANTS (Permissions for human users)
 # ==========================================
 # Grant permissions to the built-in "users" group so you can see and use the catalog
-resource "databricks_grant" "catalog_access" {
+resource "databricks_grants" "catalog_access" {
   catalog = databricks_catalog.env_catalog.name
 
   grant {
