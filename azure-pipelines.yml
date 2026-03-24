@@ -1,21 +1,17 @@
-# Trigger the pipeline only on merges to the main branch
 trigger:
   branches:
     include:
     - main
 
-# Trigger the pipeline on Pull Requests targeting the main branch
 pr:
   branches:
     include:
     - main
 
-# Use a standard Ubuntu Linux agent to run the jobs
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  # The name of the Service Connection in Azure DevOps
   azureServiceConnection: 'bank-core-sc'
 
 stages:
@@ -24,53 +20,78 @@ stages:
 # =========================================================
 - stage: PR_Validation
   displayName: 'PR Validation (Terraform Plan)'
-  # Run this stage ONLY when a Pull Request is created or updated
   condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
   - job: Terraform_Plan
     displayName: 'Terraform Init & Plan'
     steps:
-    # Step 1: Checkout the code from GitHub
     - checkout: self
-    
-    # Step 2: Install Terraform on the build agent
     - script: |
         wget -q https://releases.hashicorp.com/terraform/1.8.0/terraform_1.8.0_linux_amd64.zip
         unzip -q terraform_1.8.0_linux_amd64.zip
         sudo mv terraform /usr/local/bin/
-        terraform --version
       displayName: 'Install Terraform'
 
-    # Step 3: Run Terraform Plan using Azure CLI for Authentication
     - task: AzureCLI@2
       displayName: 'Run Terraform Plan'
       inputs:
         azureSubscription: $(azureServiceConnection)
-        # This securely injects the temporary OIDC tokens into the script environment
         addSpnToEnvironment: true 
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          echo "Setting up Terraform Authentication using Workload Identity (OIDC)..."
-          
-          # Map Azure DevOps injected variables to Terraform expected variables.
-          # NOTE: ADO automatically masks these values with *** in the logs to prevent exposure.
           export ARM_CLIENT_ID=$servicePrincipalId
           export ARM_OIDC_TOKEN=$idToken
           export ARM_TENANT_ID=$tenantId
           export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-          
-          # Tell Terraform to use the modern, password-less OIDC token auth
           export ARM_USE_OIDC=true
           
-          echo "Navigating to DEV environment folder..."
           cd environments/dev
-          
-          echo "Initializing Terraform..."
           terraform init
-          
-          echo "Validating Terraform syntax..."
           terraform validate
-          
-          echo "Running Terraform Plan..."
           terraform plan
+
+# =========================================================
+# STAGE 2: DEPLOY (Terraform Apply)
+# =========================================================
+- stage: Deploy_Dev
+  displayName: 'Deploy to DEV'
+  # Condition: Run ONLY when triggered by a merge/push to main branch
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+  jobs:
+  - deployment: Apply_Dev
+    displayName: 'Apply DEV Environment'
+    environment: 'dev' # Registers this deployment in ADO Environments
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          
+          - script: |
+              wget -q https://releases.hashicorp.com/terraform/1.8.0/terraform_1.8.0_linux_amd64.zip
+              unzip -q terraform_1.8.0_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/
+            displayName: 'Install Terraform'
+
+          - task: AzureCLI@2
+            displayName: 'Run Terraform Apply'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              addSpnToEnvironment: true
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Setting up Terraform Authentication..."
+                export ARM_CLIENT_ID=$servicePrincipalId
+                export ARM_OIDC_TOKEN=$idToken
+                export ARM_TENANT_ID=$tenantId
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                export ARM_USE_OIDC=true
+                
+                cd environments/dev
+                terraform init
+                
+                # The crucial part: auto-approve so it doesn't wait for human input
+                echo "Running Terraform Apply..."
+                terraform apply -auto-approve
