@@ -57,7 +57,8 @@ stages:
 - stage: Deploy_Dev
   displayName: 'Deploy to DEV'
   # Condition: Run ONLY when triggered by a merge/push to main branch
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+  dependsOn: []
+  condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
   jobs:
   - deployment: Apply_Dev
     displayName: 'Apply DEV Environment'
