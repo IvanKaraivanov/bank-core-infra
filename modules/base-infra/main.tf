@@ -171,22 +171,22 @@ resource "databricks_catalog" "env_catalog" {
   comment      = "Main catalog for the ${var.environment} environment"
 }
 
-# 5. Create the Medallion schemas (Databases) with environment suffixes
+# 5. Create the Medallion schemas (Databases) WITHOUT environment suffixes
 resource "databricks_schema" "bronze" {
   catalog_name = databricks_catalog.env_catalog.name
-  name         = "bronze_${var.environment}"
+  name         = "bronze"
   comment      = "Bronze layer: Raw, unvalidated data"
 }
 
 resource "databricks_schema" "silver" {
   catalog_name = databricks_catalog.env_catalog.name
-  name         = "silver_${var.environment}"
+  name         = "silver"
   comment      = "Silver layer: Cleaned, filtered, and conformed data"
 }
 
 resource "databricks_schema" "gold" {
   catalog_name = databricks_catalog.env_catalog.name
-  name         = "gold_${var.environment}"
+  name         = "gold"
   comment      = "Gold layer: Business-level aggregates and Dimensional Model"
 }
 
