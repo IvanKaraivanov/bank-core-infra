@@ -96,3 +96,49 @@ stages:
                 # The crucial part: auto-approve so it doesn't wait for human input
                 echo "Running Terraform Apply..."
                 terraform apply -auto-approve
+      
+# =========================================================
+# STAGE 3: DEPLOY TO TEST
+# =========================================================
+- stage: Deploy_Test
+  displayName: 'Deploy to TEST'
+  # Това е магията: Чака Deploy_Dev да приключи и се изпълнява САМО ако е бил успешен
+  dependsOn: Deploy_Dev
+  condition: succeeded('Deploy_Dev')
+  jobs:
+  - deployment: Apply_Test
+    displayName: 'Apply TEST Environment'
+    environment: 'test' 
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          
+          - script: |
+              wget -q https://releases.hashicorp.com/terraform/1.8.0/terraform_1.8.0_linux_amd64.zip
+              unzip -q terraform_1.8.0_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/
+            displayName: 'Install Terraform'
+
+          - task: AzureCLI@2
+            displayName: 'Run Terraform Apply for Test'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              addSpnToEnvironment: true
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Setting up Terraform Authentication..."
+                export ARM_CLIENT_ID=$servicePrincipalId
+                export ARM_OIDC_TOKEN=$idToken
+                export ARM_TENANT_ID=$tenantId
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                export ARM_USE_OIDC=true
+                
+                # Влизаме директно в папката за test
+                cd environments/test
+                terraform init
+                
+                echo "Running Terraform Apply for Test..."
+                terraform apply -auto-approve
