@@ -250,3 +250,20 @@ resource "databricks_cluster" "dev_cluster" {
     "Project"     = "BankCore"
   }
 }
+
+# ==========================================
+# 12. CLUSTER PERMISSIONS (The missing piece)
+# ==========================================
+resource "databricks_permissions" "dev_cluster_access" {
+  cluster_id = databricks_cluster.dev_cluster.id
+
+  access_control {
+    # Grant permissions to all users in the workspace. 
+    # If you have a specific engineering group, replace "users" with it.
+    group_name       = "account users" 
+    
+    # CAN_RESTART allows users to see the cluster, attach to it 
+    # (for Databricks Connect), and wake it up if it has auto-terminated.
+    permission_level = "CAN_RESTART" 
+  }
+}
