@@ -252,9 +252,9 @@ resource "databricks_permissions" "dev_cluster_access" {
   cluster_id = databricks_cluster.dev_cluster.id
 
   access_control {
-    # Grant permissions to all account users in the workspace. 
+    # Grant permissions to all  users in the workspace. 
     # If you have a specific engineering group, replace "account users" with it.
-    group_name       = "account users" 
+    group_name       = "users" 
     
     # CAN_RESTART allows users to see the cluster, attach to it 
     # (for Databricks Connect), and wake it up if it has auto-terminated.
