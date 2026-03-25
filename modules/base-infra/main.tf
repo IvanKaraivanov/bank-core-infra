@@ -214,10 +214,6 @@ resource "databricks_grants" "catalog_access" {
 # 11. SPARK CLUSTER (The Compute Engine)
 # ==========================================
 
-# ==========================================
-# 11. SPARK CLUSTER (The Compute Engine)
-# ==========================================
-
 # Dynamically fetch the latest Long Term Support (LTS) Databricks Runtime version
 data "databricks_spark_version" "latest_lts" {
   long_term_support = true
