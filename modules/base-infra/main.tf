@@ -219,12 +219,12 @@ data "databricks_spark_version" "latest_lts" {
   long_term_support = true
 }
 
-# Dynamically fetch the smallest available VM node type for the Dev environment
+# Dynamically fetch the smallest available VM node type for the environment
 data "databricks_node_type" "smallest" {
   local_disk = true
 }
 
-# Create an interactive Single Node cluster for development and Asset Bundles
+# Create an interactive Shared cluster for development, Databricks Connect and Asset Bundles
 resource "databricks_cluster" "dev_cluster" {
   cluster_name            = "compute-bankcore-${var.environment}"
   spark_version           = data.databricks_spark_version.latest_lts.id
@@ -233,17 +233,11 @@ resource "databricks_cluster" "dev_cluster" {
   # FinOps best practice: Auto-terminate after 15 minutes of inactivity to save cloud costs
   autotermination_minutes = 15
 
-  # Single Node configuration (0 worker nodes, just the driver)
-  num_workers             = 0
+  # Minimum 1 worker is required for USER_ISOLATION (Shared Compute) in Unity Catalog
+  num_workers             = 1
 
   # Required security mode for Unity Catalog (Shared Compute)
   data_security_mode      = "USER_ISOLATION"
-
-  # Spark configurations to enforce Single Node mode
-  spark_conf = {
-    "spark.databricks.cluster.profile" = "singleNode"
-    "spark.master"                     = "local[*]"
-  }
 
   custom_tags = {
     "Environment" = var.environment
@@ -258,8 +252,8 @@ resource "databricks_permissions" "dev_cluster_access" {
   cluster_id = databricks_cluster.dev_cluster.id
 
   access_control {
-    # Grant permissions to all users in the workspace. 
-    # If you have a specific engineering group, replace "users" with it.
+    # Grant permissions to all account users in the workspace. 
+    # If you have a specific engineering group, replace "account users" with it.
     group_name       = "account users" 
     
     # CAN_RESTART allows users to see the cluster, attach to it 
