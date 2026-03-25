@@ -214,14 +214,25 @@ resource "databricks_grants" "catalog_access" {
 # 11. SPARK CLUSTER (The Compute Engine)
 # ==========================================
 
+# ==========================================
+# 11. SPARK CLUSTER (The Compute Engine)
+# ==========================================
+
 # Dynamically fetch the latest Long Term Support (LTS) Databricks Runtime version
 data "databricks_spark_version" "latest_lts" {
   long_term_support = true
+  
+  # Delay fetching this data until the Databricks Workspace is fully created.
+  # This prevents the "Chicken and Egg" problem during the initial deployment.
+  depends_on = [azurerm_databricks_workspace.databricks]
 }
 
 # Dynamically fetch the smallest available VM node type for the environment
 data "databricks_node_type" "smallest" {
   local_disk = true
+  
+  # Same dependency rule applies here
+  depends_on = [azurerm_databricks_workspace.databricks]
 }
 
 # Create an interactive Shared cluster for development, Databricks Connect and Asset Bundles
