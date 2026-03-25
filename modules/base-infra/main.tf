@@ -209,3 +209,44 @@ resource "databricks_grants" "catalog_access" {
     ]
   }
 }
+
+# ==========================================
+# 11. SPARK CLUSTER (The Compute Engine)
+# ==========================================
+
+# Dynamically fetch the latest Long Term Support (LTS) Databricks Runtime version
+data "databricks_spark_version" "latest_lts" {
+  long_term_support = true
+}
+
+# Dynamically fetch the smallest available VM node type for the Dev environment
+data "databricks_node_type" "smallest" {
+  local_disk = true
+}
+
+# Create an interactive Single Node cluster for development and Asset Bundles
+resource "databricks_cluster" "dev_cluster" {
+  cluster_name            = "compute-bankcore-${var.environment}"
+  spark_version           = data.databricks_spark_version.latest_lts.id
+  node_type_id            = data.databricks_node_type.smallest.id
+  
+  # FinOps best practice: Auto-terminate after 15 minutes of inactivity to save cloud costs
+  autotermination_minutes = 15
+
+  # Single Node configuration (0 worker nodes, just the driver)
+  num_workers             = 0
+
+  # Required security mode for Unity Catalog (Shared Compute)
+  data_security_mode      = "USER_ISOLATION"
+
+  # Spark configurations to enforce Single Node mode
+  spark_conf = {
+    "spark.databricks.cluster.profile" = "singleNode"
+    "spark.master"                     = "local[*]"
+  }
+
+  custom_tags = {
+    "Environment" = var.environment
+    "Project"     = "BankCore"
+  }
+}
