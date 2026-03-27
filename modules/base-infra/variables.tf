@@ -24,7 +24,7 @@ variable "dbx_private_subnet_prefix" {
 variable "databricks_admin_group" {
   type        = string
   description = "The name of the Databricks admin group to grant full permissions"
-  default     = "admins"
+  default     = "bankcore-admins"
 }
 
 variable "databricks_admin_users" {
