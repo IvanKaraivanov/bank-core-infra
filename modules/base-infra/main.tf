@@ -193,32 +193,6 @@ resource "databricks_schema" "gold" {
 # ==========================================
 # 10. GRANTS (Permissions for human users)
 # ==========================================
-# ADMIN GROUP SETUP
-# ==========================================
-
-# Create the admin group in Databricks
-resource "databricks_group" "admins" {
-  display_name = var.databricks_admin_group
-  
-  depends_on = [azurerm_databricks_workspace.databricks]
-}
-
-# Add users to the admin group
-resource "databricks_group_member" "admin_members" {
-  for_each  = toset(var.databricks_admin_users)
-  group_id  = databricks_group.admins.id
-  member_id = databricks_user.admins[each.key].id
-}
-
-# Ensure users exist in the workspace (creates them if they don't)
-resource "databricks_user" "admins" {
-  for_each   = toset(var.databricks_admin_users)
-  user_name  = each.value
-  
-  depends_on = [azurerm_databricks_workspace.databricks]
-}
-
-# ==========================================
 # Grant permissions to the built-in "users" group so you can see and use the catalog
 resource "databricks_grants" "catalog_access" {
   catalog = databricks_catalog.env_catalog.name
@@ -236,32 +210,30 @@ resource "databricks_grants" "catalog_access" {
   }
 }
 
-# Grant admin group full permissions on Storage Credential
+# Grant admin users full permissions on Storage Credential
 resource "databricks_grants" "storage_credential_admin" {
   storage_credential = databricks_storage_credential.mi_credential.id
 
-  grant {
-    principal  = databricks_group.admins.display_name
-    privileges = [
-      "ALL_PRIVILEGES"  # Full control over the storage credential
-    ]
+  dynamic "grant" {
+    for_each = toset(var.databricks_admin_users)
+    content {
+      principal  = grant.value
+      privileges = ["ALL_PRIVILEGES"]
+    }
   }
-  
-  depends_on = [databricks_group.admins]
 }
 
-# Grant admin group full permissions on External Location
+# Grant admin users full permissions on External Location
 resource "databricks_grants" "external_location_admin" {
   external_location = databricks_external_location.datalake_loc.id
 
-  grant {
-    principal  = databricks_group.admins.display_name
-    privileges = [
-      "ALL_PRIVILEGES"  # Includes READ_FILES, WRITE_FILES, CREATE_EXTERNAL_TABLE
-    ]
+  dynamic "grant" {
+    for_each = toset(var.databricks_admin_users)
+    content {
+      principal  = grant.value
+      privileges = ["ALL_PRIVILEGES"]
+    }
   }
-  
-  depends_on = [databricks_group.admins]
 }
 
 # ==========================================
