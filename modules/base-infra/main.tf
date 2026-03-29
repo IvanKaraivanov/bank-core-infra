@@ -133,7 +133,8 @@ resource "databricks_storage_credential" "mi_credential" {
   azure_managed_identity {
     access_connector_id = azurerm_databricks_access_connector.unity.id
   }
-  depends_on = [azurerm_role_assignment.databricks_datalake_access]
+  force_update = true
+  depends_on   = [azurerm_role_assignment.databricks_datalake_access]
 }
 
 resource "databricks_external_location" "datalake_loc" {
@@ -171,6 +172,7 @@ resource "databricks_schema" "gold" {
 resource "databricks_user" "admins" {
   for_each  = toset(var.databricks_admin_users)
   user_name = each.value
+  force     = true  # Take ownership of existing users
 }
 
 # Fetch the built-in 'admins' group
